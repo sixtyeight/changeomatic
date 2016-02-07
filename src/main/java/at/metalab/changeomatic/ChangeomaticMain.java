@@ -37,8 +37,7 @@ public class ChangeomaticMain {
 		RedissonClient r = Redisson.create(c);
 
 		final RTopic<String> hopperRequest = r.getTopic("hopper-request");
-
-		RTopic<String> validatorEvent = r.getTopic("validator-event");
+		final RTopic<String> validatorEvent = r.getTopic("validator-event");
 
 		validatorEvent.addListener(new MessageListener<String>() {
 
@@ -63,10 +62,11 @@ public class ChangeomaticMain {
 						System.out.println("starting coin payout with amount="
 								+ doPayout.amount);
 
-						hopperRequest.publish(strDoPayout);
+						hopperRequest.publishAsync(strDoPayout);
 					}
 				} catch (Exception exception) {
 					System.out.println("oops: " + exception.getMessage());
+					exception.printStackTrace();
 				}
 			}
 		});
