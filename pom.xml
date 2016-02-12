@@ -12,6 +12,10 @@
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+
+		<maven.compiler.source>1.8</maven.compiler.source>
+		<maven.compiler.target>1.8</maven.compiler.target>
+
 		<jetty.version>8.1.14.v20131031</jetty.version>
 		<fusesource-mqtt.version>1.10</fusesource-mqtt.version>
 		<redisson.version>2.2.6</redisson.version>
