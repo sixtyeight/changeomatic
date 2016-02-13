@@ -16,8 +16,6 @@
 		<maven.compiler.source>1.8</maven.compiler.source>
 		<maven.compiler.target>1.8</maven.compiler.target>
 
-		<jetty.version>8.1.14.v20131031</jetty.version>
-		<fusesource-mqtt.version>1.10</fusesource-mqtt.version>
 		<redisson.version>2.2.6</redisson.version>
 	</properties>
 
@@ -27,51 +25,36 @@
 		   <artifactId>redisson</artifactId>
 		   <version>${redisson.version}</version>
 		</dependency>	
-		<dependency>
-			<groupId>org.eclipse.jetty</groupId>
-			<artifactId>jetty-server</artifactId>
-			<version>${jetty.version}</version>
-		</dependency>
-		<dependency>
-			<groupId>org.eclipse.jetty</groupId>
-			<artifactId>jetty-servlet</artifactId>
-			<version>${jetty.version}</version>
-		</dependency>
-		<dependency>
-			<groupId>org.fusesource.mqtt-client</groupId>
-			<artifactId>mqtt-client</artifactId>
-			<version>${fusesource-mqtt.version}</version>
-		</dependency>
 	</dependencies>
 
 	<build>
 		<plugins>
 			<plugin>
-				<groupId>com.google.code.maven-replacer-plugin</groupId>
-				<artifactId>replacer</artifactId>
-				<version>1.5.2</version>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-assembly-plugin</artifactId>
+				<version>2.4.1</version>
+				<configuration>
+					<!-- get all project dependencies -->
+					<descriptorRefs>
+						<descriptorRef>jar-with-dependencies</descriptorRef>
+					</descriptorRefs>
+					<!-- MainClass in mainfest make a executable jar -->
+					<archive>
+						<manifest>
+							<mainClass>at.metalab.changeomatic.ChangeomaticMain</mainClass>
+						</manifest>
+					</archive>
+				</configuration>
 				<executions>
 					<execution>
-						<phase>prepare-package</phase>
+						<id>make-assembly</id>
+						<!-- bind to the packaging phase -->
+						<phase>package</phase>
 						<goals>
-							<goal>replace</goal>
+							<goal>single</goal>
 						</goals>
 					</execution>
 				</executions>
-				<configuration>
-					<filesToInclude>target/classes/ui/**/build.html,target/classes/build.properties</filesToInclude>
-					<regex>false</regex>
-					<replacements>
-						<replacement>
-							<token>$VERSION$</token>
-							<value>${project.version}</value>
-						</replacement>
-						<replacement>
-							<token>$TIMESTAMP$</token>
-							<value>${maven.build.timestamp}</value>
-						</replacement>
-					</replacements>
-				</configuration>
 			</plugin>
 		</plugins>
 	</build>
