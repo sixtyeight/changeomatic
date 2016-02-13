@@ -18,6 +18,33 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 public class ChangeomaticMain {
 
+	private final static ObjectMapper om = new ObjectMapper();
+
+	@JsonInclude(Include.NON_NULL)
+	public static class ChangeomaticJson {
+		public String msgId;
+		public String event;
+		public Integer channel;
+		public Integer amount;
+		public List<Integer> inhibitedChannels;
+
+		public String stringify() {
+			try {
+				return om.writeValueAsString(this);
+			} catch (Exception exception) {
+				throw new RuntimeException("stringify failed", exception);
+			}
+		}
+
+		public static ChangeomaticJson parse(String json) {
+			try {
+				return om.readValue(json, ChangeomaticJson.class);
+			} catch (Exception exception) {
+				throw new RuntimeException("parse failed", exception);
+			}
+		}
+	}
+
 	@JsonInclude(Include.NON_NULL)
 	public static class KassomatJson {
 		public String cmd;
@@ -30,8 +57,6 @@ public class ChangeomaticMain {
 		public String cc;
 		public String channel;
 		public String channels;
-
-		private final static ObjectMapper om = new ObjectMapper();
 
 		public String stringify() {
 			try {
@@ -58,6 +83,11 @@ public class ChangeomaticMain {
 
 		RedissonClient r = Redisson.create(c);
 
+		final RTopic<String> changeomaticEvent = r
+				.getTopic("changeomatic-event");
+		changeomaticEvent.publish(createChangeomaticEvent("starting-up")
+				.stringify());
+
 		final RTopic<String> hopperRequest = r.getTopic("hopper-request");
 		final RTopic<String> hopperResponse = r.getTopic("hopper-response");
 		final RTopic<String> hopperEvent = r.getTopic("hopper-event");
@@ -67,9 +97,7 @@ public class ChangeomaticMain {
 
 		// disable all channels (this will also be done by smart
 		// payout by default in the future)
-		validatorRequest.publishAsync(inhibitAllChannels().stringify());
-		
-		Thread.sleep(5000);
+		validatorRequest.publish(inhibitAllChannels().stringify());
 
 		final Map<Integer, Boolean> inhibits = new HashMap<Integer, Boolean>();
 		inhibits.put(1, true); // 5 euro
@@ -82,8 +110,8 @@ public class ChangeomaticMain {
 		inhibits.put(8, true); // unused
 
 		// initial money check
-		submitAllTestPayouts(inhibits, hopperRequest,
-				hopperResponse, validatorRequest);
+		submitAllTestPayouts(inhibits, hopperRequest, hopperResponse,
+				validatorRequest, changeomaticEvent);
 
 		validatorEvent.addListener(new MessageListener<String>() {
 
@@ -92,11 +120,14 @@ public class ChangeomaticMain {
 					KassomatJson message = KassomatJson.parse(strMessage);
 
 					if ("credit".equals(message.event)) {
-						System.out.println("banknote credited with amount="
-								+ message.amount);
+						changeomaticEvent
+								.publishAsync(createChangeomaticNoteCredited(
+										Integer.parseInt(message.channel),
+										message.amount).stringify());
 
 						validatorRequest.publishAsync(inhibitAllChannels()
 								.stringify());
+
 						hopperRequest.publishAsync(doPayout(message.amount)
 								.stringify());
 					}
@@ -117,10 +148,11 @@ public class ChangeomaticMain {
 								.stringify());
 						break;
 					case "cashbox paid":
-						System.out.println("payout cycle completed");
+						changeomaticEvent.publishAsync(createChangeomaticPayoutCompleted().stringify());
 					case "coin credit":
 						submitAllTestPayouts(inhibits, hopperRequest,
-								hopperResponse, validatorRequest);
+								hopperResponse, validatorRequest,
+								changeomaticEvent);
 
 						break;
 					}
@@ -137,65 +169,82 @@ public class ChangeomaticMain {
 		r.shutdown();
 	}
 
-	private static void submitAllTestPayouts(final Map<Integer, Boolean> inhibits,
+	private static void submitAllTestPayouts(
+			final Map<Integer, Boolean> inhibits,
 			final RTopic<String> hopperRequest,
 			final RTopic<String> hopperResponse,
-			final RTopic<String> validatorRequest) {
-		submitTestPayout(inhibits, 500, 1, hopperRequest,
-				hopperResponse, validatorRequest);
-		
-		submitTestPayout(inhibits, 1000, 2, hopperRequest,
-				hopperResponse, validatorRequest);
-		
-		submitTestPayout(inhibits, 2000, 3, hopperRequest,
-				hopperResponse, validatorRequest);
-		
-		submitTestPayout(inhibits, 5000, 4, hopperRequest,
-				hopperResponse, validatorRequest);
-		
-		submitTestPayout(inhibits, 10000, 5, hopperRequest,
-				hopperResponse, validatorRequest);
-		
-		submitTestPayout(inhibits, 20000, 6, hopperRequest,
-				hopperResponse, validatorRequest);
-		
-		submitTestPayout(inhibits, 50000, 7, hopperRequest,
-				hopperResponse, validatorRequest);
+			final RTopic<String> validatorRequest,
+			final RTopic<String> changeomaticEvent) {
+		submitTestPayout(inhibits, 500, 1, hopperRequest, hopperResponse,
+				validatorRequest, changeomaticEvent);
+
+		submitTestPayout(inhibits, 1000, 2, hopperRequest, hopperResponse,
+				validatorRequest, changeomaticEvent);
+
+		submitTestPayout(inhibits, 2000, 3, hopperRequest, hopperResponse,
+				validatorRequest, changeomaticEvent);
+
+		submitTestPayout(inhibits, 5000, 4, hopperRequest, hopperResponse,
+				validatorRequest, changeomaticEvent);
+
+		submitTestPayout(inhibits, 10000, 5, hopperRequest, hopperResponse,
+				validatorRequest, changeomaticEvent);
+
+		submitTestPayout(inhibits, 20000, 6, hopperRequest, hopperResponse,
+				validatorRequest, changeomaticEvent);
+
+		submitTestPayout(inhibits, 50000, 7, hopperRequest, hopperResponse,
+				validatorRequest, changeomaticEvent);
 	}
-	
+
 	private static void submitTestPayout(final Map<Integer, Boolean> inhibits,
 			final int amount, final int channel,
 			final RTopic<String> hopperRequest,
 			final RTopic<String> hopperResponse,
-			final RTopic<String> validatorRequest) {
+			final RTopic<String> validatorRequest,
+			final RTopic<String> changeomaticEvent) {
 		final KassomatJson tp = testPayout(amount);
-		final WaitForKassomat w = new WaitForKassomat(tp.msgId) {
+		final KassomatRequestCallback w = new KassomatRequestCallback(tp.msgId) {
 
 			@Override
 			public void handleMessage(String topic, KassomatJson message) {
 				hopperResponse.removeListener(getId());
 
 				synchronized (inhibits) {
+					boolean inhibitsChanged = false;
+
 					if ("ok".equals(message.result)) {
-						if(inhibits.get(channel)) {
-							System.out.println("allowing channel " + channel + " now");
+						if (inhibits.get(channel)) {
+							System.out.println("allowing channel " + channel
+									+ " now");
+							inhibitsChanged = true;
 						}
 						inhibits.put(channel, false);
 					} else {
-						if(! inhibits.get(channel)) {
-							System.out.println("inhibiting channel " + channel + " now");
+						if (!inhibits.get(channel)) {
+							System.out.println("inhibiting channel " + channel
+									+ " now");
+							inhibitsChanged = true;
 						}
 						inhibits.put(channel, true);
 					}
-					List<Integer> channelsToInhibit = new ArrayList<Integer>();
-					for (Map.Entry<Integer, Boolean> entry : inhibits
-							.entrySet()) {
-						if (entry.getValue()) {
-							channelsToInhibit.add(entry.getKey());
+
+					if (inhibitsChanged) {
+						List<Integer> channelsToInhibit = new ArrayList<Integer>();
+						for (Map.Entry<Integer, Boolean> entry : inhibits
+								.entrySet()) {
+							if (entry.getValue()) {
+								channelsToInhibit.add(entry.getKey());
+							}
 						}
+
+						changeomaticEvent
+								.publishAsync(createChangeomaticInhibitsChanged(
+										channelsToInhibit).stringify());
+
+						validatorRequest.publishAsync(inhibitChannels(
+								channelsToInhibit).stringify());
 					}
-					validatorRequest.publishAsync(inhibitChannels(
-							channelsToInhibit).stringify());
 				}
 			}
 		};
@@ -203,14 +252,14 @@ public class ChangeomaticMain {
 		hopperRequest.publishAsync(tp.stringify());
 	}
 
-	public abstract static class WaitForKassomat implements
+	public abstract static class KassomatRequestCallback implements
 			MessageListener<String> {
 
 		private String correlId;
 
 		private int id;
 
-		public WaitForKassomat(String msgId) {
+		public KassomatRequestCallback(String msgId) {
 			this.correlId = msgId;
 		}
 
@@ -242,36 +291,67 @@ public class ChangeomaticMain {
 		exception.printStackTrace();
 	}
 
-	private static KassomatJson doPayout(int amount) {
+	private static ChangeomaticJson createChangeomaticEvent(String event) {
+		ChangeomaticJson c = new ChangeomaticJson();
+		c.event = event;
+		c.msgId = UUID.randomUUID().toString();
+
+		return c;
+	}
+
+	private static ChangeomaticJson createChangeomaticNoteCredited(int channel,
+			int amount) {
+		ChangeomaticJson c = createChangeomaticEvent("note-credited");
+		c.amount = amount;
+		c.channel = channel;
+
+		return c;
+	}
+
+	private static ChangeomaticJson createChangeomaticPayoutCompleted() {
+		ChangeomaticJson c = createChangeomaticEvent("payout-completed");
+
+		return c;
+	}
+
+	private static ChangeomaticJson createChangeomaticInhibitsChanged(
+			List<Integer> inhibitedChannels) {
+		ChangeomaticJson c = createChangeomaticEvent("inhibits-changed");
+		c.inhibitedChannels = inhibitedChannels;
+
+		return c;
+	}
+
+	private static KassomatJson createSmartPayoutRequest(String cmd) {
 		KassomatJson k = new KassomatJson();
-		k.cmd = "do-payout";
+		k.cmd = cmd;
 		k.msgId = UUID.randomUUID().toString();
+
+		return k;
+	}
+
+	private static KassomatJson doPayout(int amount) {
+		KassomatJson k = createSmartPayoutRequest("do-payout");
 		k.amount = amount;
 
 		return k;
 	}
 
 	private static KassomatJson testPayout(int amount) {
-		KassomatJson k = new KassomatJson();
-		k.cmd = "test-payout";
-		k.msgId = UUID.randomUUID().toString();
+		KassomatJson k = createSmartPayoutRequest("test-payout");
 		k.amount = amount;
 
 		return k;
 	}
 
 	private static KassomatJson inhibitAllChannels() {
-		KassomatJson k = new KassomatJson();
-		k.cmd = "inhibit-channels";
-		k.msgId = UUID.randomUUID().toString();
+		KassomatJson k = createSmartPayoutRequest("inhibit-channels");
 		k.channels = "1,2,3,4,5,6,7,8";
 		return k;
 	}
 
 	private static KassomatJson inhibitChannels(List<Integer> channels) {
-		KassomatJson k = new KassomatJson();
-		k.cmd = "inhibit-channels";
-		k.msgId = UUID.randomUUID().toString();
+		KassomatJson k = createSmartPayoutRequest("inhibit-channels");
 		StringBuilder s = new StringBuilder();
 		for (Integer channel : channels) {
 			if (s.length() > 0) {
