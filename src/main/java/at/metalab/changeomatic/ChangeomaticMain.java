@@ -6,6 +6,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+import javafx.embed.swing.JFXPanel;
+
 import org.redisson.Config;
 import org.redisson.Redisson;
 import org.redisson.RedissonClient;
@@ -83,10 +85,36 @@ public class ChangeomaticMain {
 
 		RedissonClient r = Redisson.create(c);
 
+		final ChangeomaticFrame changeomaticFrame = new ChangeomaticFrame();
+		startupGui(changeomaticFrame);
+
+		synchronized (changeomaticFrame) {
+			changeomaticFrame.wait();
+			// GUI available
+		}
+
 		final RTopic<String> changeomaticEvent = r
 				.getTopic("changeomatic-event");
 		changeomaticEvent.publish(createChangeomaticEvent("starting-up")
 				.stringify());
+
+		// listen for events which change the gui
+		changeomaticEvent.addListener(new MessageListener<String>() {
+			@Override
+			public void onMessage(String topic, String strMessage) {
+				ChangeomaticJson event = ChangeomaticJson.parse(strMessage);
+
+				switch (event.event) {
+				case "inhibits-changed":
+					changeomaticFrame.updateInhibits(event.inhibitedChannels);
+					break;
+
+				default:
+					break;
+				}
+
+			}
+		});
 
 		final RTopic<String> hopperRequest = r.getTopic("hopper-request");
 		final RTopic<String> hopperResponse = r.getTopic("hopper-response");
@@ -113,6 +141,8 @@ public class ChangeomaticMain {
 		submitAllTestPayouts(inhibits, hopperRequest, hopperResponse,
 				validatorRequest, changeomaticEvent);
 
+		changeomaticFrame.hintInsertNote();
+
 		validatorEvent.addListener(new MessageListener<String>() {
 
 			public void onMessage(String channel, String strMessage) {
@@ -130,6 +160,10 @@ public class ChangeomaticMain {
 
 						hopperRequest.publishAsync(doPayout(message.amount)
 								.stringify());
+					} else if ("reading".equals(message.event)) {
+						changeomaticFrame.hintPleaseWait();
+					} else if ("rejected".equals(message.event)) {
+						changeomaticFrame.hintInsertNote();
 					}
 				} catch (Exception exception) {
 					oops("validator-event-listener", exception);
@@ -144,10 +178,12 @@ public class ChangeomaticMain {
 
 					switch (message.event) {
 					case "dispensing":
+						changeomaticFrame.hintDispensing();
 						validatorRequest.publishAsync(inhibitAllChannels()
 								.stringify());
 						break;
 					case "cashbox paid":
+						changeomaticFrame.hintInsertNote();
 						changeomaticEvent
 								.publishAsync(createChangeomaticPayoutCompleted()
 										.stringify());
@@ -258,7 +294,7 @@ public class ChangeomaticMain {
 					handleMessage(topic, message);
 				}
 			} catch (Exception exception) {
-				oops("WaitForKassomat", exception);
+				oops("KassomatRequestCallback", exception);
 			}
 		}
 
@@ -351,4 +387,53 @@ public class ChangeomaticMain {
 		return k;
 	}
 
+	private static void startupGui(ChangeomaticFrame changeomaticFrame) {
+		/* Set the Nimbus look and feel */
+		// <editor-fold defaultstate="collapsed"
+		// desc=" Look and feel setting code (optional) ">
+		/*
+		 * If Nimbus (introduced in Java SE 6) is not available, stay with the
+		 * default look and feel. For details see
+		 * http://download.oracle.com/javase
+		 * /tutorial/uiswing/lookandfeel/plaf.html
+		 */
+		try {
+			for (javax.swing.UIManager.LookAndFeelInfo info : javax.swing.UIManager
+					.getInstalledLookAndFeels()) {
+				if ("Nimbus".equals(info.getName())) {
+					javax.swing.UIManager.setLookAndFeel(info.getClassName());
+					break;
+				}
+			}
+		} catch (ClassNotFoundException ex) {
+			java.util.logging.Logger.getLogger(
+					ChangeomaticFrame.class.getName()).log(
+					java.util.logging.Level.SEVERE, null, ex);
+		} catch (InstantiationException ex) {
+			java.util.logging.Logger.getLogger(
+					ChangeomaticFrame.class.getName()).log(
+					java.util.logging.Level.SEVERE, null, ex);
+		} catch (IllegalAccessException ex) {
+			java.util.logging.Logger.getLogger(
+					ChangeomaticFrame.class.getName()).log(
+					java.util.logging.Level.SEVERE, null, ex);
+		} catch (javax.swing.UnsupportedLookAndFeelException ex) {
+			java.util.logging.Logger.getLogger(
+					ChangeomaticFrame.class.getName()).log(
+					java.util.logging.Level.SEVERE, null, ex);
+		}
+		// </editor-fold>
+		// </editor-fold>
+
+		JFXPanel fxPanel = new JFXPanel();
+		/* Create and display the form */
+		java.awt.EventQueue.invokeLater(new Runnable() {
+			public void run() {
+				changeomaticFrame.setVisible(true);
+				synchronized (changeomaticFrame) {
+					changeomaticFrame.notify();
+				}
+			}
+		});
+	}
 }
