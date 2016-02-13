@@ -134,6 +134,10 @@ public class ChangeomaticFrame extends javax.swing.JFrame {
 		updateHint("OUT OF ORDER");
 	}
 	
+	public void hintSorry() {
+		updateHint("SORRY. CAN'T DO.");
+	}
+	
 	public void hintInsertNote() {
 		notes.setVisible(true);
 		updateHint("INSERT NOTE");
