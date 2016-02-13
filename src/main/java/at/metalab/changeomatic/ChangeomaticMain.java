@@ -59,6 +59,7 @@ public class ChangeomaticMain {
 		public String cc;
 		public String channel;
 		public String channels;
+		public String id;
 
 		public String stringify() {
 			try {
@@ -85,14 +86,6 @@ public class ChangeomaticMain {
 
 		RedissonClient r = Redisson.create(c);
 
-		final ChangeomaticFrame changeomaticFrame = new ChangeomaticFrame();
-		startupGui(changeomaticFrame);
-
-		synchronized (changeomaticFrame) {
-			changeomaticFrame.wait();
-			// GUI available
-		}
-
 		final RTopic<String> changeomaticEvent = r
 				.getTopic("changeomatic-event");
 		changeomaticEvent.publish(createChangeomaticEvent("starting-up")
@@ -105,6 +98,16 @@ public class ChangeomaticMain {
 		final RTopic<String> validatorEvent = r.getTopic("validator-event");
 		final RTopic<String> validatorRequest = r.getTopic("validator-request");
 
+		final ChangeomaticFrame changeomaticFrame = new ChangeomaticFrame();
+		startupGui(changeomaticFrame);
+
+		synchronized (changeomaticFrame) {
+			changeomaticFrame.wait();
+			// GUI available
+			changeomaticEvent.publish(createChangeomaticEvent("started")
+					.stringify());
+		}
+		
 		// disable all channels (this will also be done by smart
 		// payout by default in the future)
 		validatorRequest.publish(inhibitAllChannels().stringify());
@@ -125,24 +128,35 @@ public class ChangeomaticMain {
 
 		changeomaticFrame.hintInsertNote();
 
+		// handle events which have happened in the banknote validator
 		validatorEvent.addListener(new MessageListener<String>() {
 
 			public void onMessage(String channel, String strMessage) {
 				try {
 					KassomatJson message = KassomatJson.parse(strMessage);
 
-					if ("credit".equals(message.event)) {
+					switch (message.event) {
+					case "credit":
 						validatorRequest.publishAsync(inhibitAllChannels()
 								.stringify());
+						validatorRequest.publishAsync(disable().stringify());
 
 						hopperRequest.publishAsync(doPayout(message.amount)
 								.stringify());
-					} else if ("reading".equals(message.event)) {
+						break;
+
+					case "reading":
 						changeomaticFrame.hintPleaseWait();
-					} else if ("rejecting".equals(message.event)) {
+						break;
+						
+					case "rejecting":
 						changeomaticFrame.hintSorry();
-					} else if ("rejected".equals(message.event)) {
+						break;
+						
+					case "rejected":
+						validatorRequest.publishAsync(enable().stringify());
 						changeomaticFrame.hintInsertNote();
+						break;
 					}
 				} catch (Exception exception) {
 					oops("validator-event-listener", exception);
@@ -150,6 +164,7 @@ public class ChangeomaticMain {
 			}
 		});
 
+		// handle events which have happened in the coin hopper
 		hopperEvent.addListener(new MessageListener<String>() {
 			public void onMessage(String channel, String strMessage) {
 				try {
@@ -159,6 +174,7 @@ public class ChangeomaticMain {
 					case "dispensing":
 						changeomaticFrame.hintDispensing();
 						break;
+
 					case "cashbox paid":
 						validatorRequest.publishAsync(inhibitAllChannels()
 								.stringify());
@@ -166,13 +182,14 @@ public class ChangeomaticMain {
 								hopperResponse, validatorRequest,
 								changeomaticEvent);
 
+						validatorRequest.publishAsync(enable().stringify());
 						changeomaticFrame.hintInsertNote();
 						break;
+
 					case "coin credit":
 						submitAllTestPayouts(changeomaticFrame, inhibits, hopperRequest,
 								hopperResponse, validatorRequest,
 								changeomaticEvent);
-
 						break;
 					}
 				} catch (Exception exception) {
@@ -374,6 +391,16 @@ public class ChangeomaticMain {
 		return k;
 	}
 
+	private static KassomatJson disable() {
+		KassomatJson k = createSmartPayoutRequest("disable");
+		return k;
+	}
+	
+	private static KassomatJson enable() {
+		KassomatJson k = createSmartPayoutRequest("enable");
+		return k;
+	}
+	
 	private static void startupGui(ChangeomaticFrame changeomaticFrame) {
 		/* Set the Nimbus look and feel */
 		// <editor-fold defaultstate="collapsed"
