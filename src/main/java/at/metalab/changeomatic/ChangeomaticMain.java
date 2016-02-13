@@ -167,6 +167,7 @@ public class ChangeomaticMain {
 								changeomaticEvent);
 
 						changeomaticFrame.hintInsertNote();
+						break;
 					case "coin credit":
 						submitAllTestPayouts(changeomaticFrame, inhibits, hopperRequest,
 								hopperResponse, validatorRequest,
