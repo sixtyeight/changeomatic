@@ -148,7 +148,9 @@ public class ChangeomaticMain {
 								.stringify());
 						break;
 					case "cashbox paid":
-						changeomaticEvent.publishAsync(createChangeomaticPayoutCompleted().stringify());
+						changeomaticEvent
+								.publishAsync(createChangeomaticPayoutCompleted()
+										.stringify());
 					case "coin credit":
 						submitAllTestPayouts(inhibits, hopperRequest,
 								hopperResponse, validatorRequest,
@@ -211,40 +213,26 @@ public class ChangeomaticMain {
 				hopperResponse.removeListener(getId());
 
 				synchronized (inhibits) {
-					boolean inhibitsChanged = false;
-
 					if ("ok".equals(message.result)) {
-						if (inhibits.get(channel)) {
-							System.out.println("allowing channel " + channel
-									+ " now");
-							inhibitsChanged = true;
-						}
 						inhibits.put(channel, false);
 					} else {
-						if (!inhibits.get(channel)) {
-							System.out.println("inhibiting channel " + channel
-									+ " now");
-							inhibitsChanged = true;
-						}
 						inhibits.put(channel, true);
 					}
 
-					if (inhibitsChanged) {
-						List<Integer> channelsToInhibit = new ArrayList<Integer>();
-						for (Map.Entry<Integer, Boolean> entry : inhibits
-								.entrySet()) {
-							if (entry.getValue()) {
-								channelsToInhibit.add(entry.getKey());
-							}
+					List<Integer> channelsToInhibit = new ArrayList<Integer>();
+					for (Map.Entry<Integer, Boolean> entry : inhibits
+							.entrySet()) {
+						if (entry.getValue()) {
+							channelsToInhibit.add(entry.getKey());
 						}
-
-						changeomaticEvent
-								.publishAsync(createChangeomaticInhibitsChanged(
-										channelsToInhibit).stringify());
-
-						validatorRequest.publishAsync(inhibitChannels(
-								channelsToInhibit).stringify());
 					}
+
+					changeomaticEvent
+							.publishAsync(createChangeomaticInhibitsChanged(
+									channelsToInhibit).stringify());
+
+					validatorRequest.publishAsync(inhibitChannels(
+							channelsToInhibit).stringify());
 				}
 			}
 		};
