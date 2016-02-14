@@ -14,6 +14,7 @@ import org.redisson.RedissonClient;
 import org.redisson.core.MessageListener;
 import org.redisson.core.RTopic;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -23,6 +24,7 @@ public class ChangeomaticMain {
 	private final static ObjectMapper om = new ObjectMapper();
 
 	@JsonInclude(Include.NON_NULL)
+	@JsonIgnoreProperties(ignoreUnknown = true) 	
 	public static class ChangeomaticJson {
 		public String msgId;
 		public String event;
@@ -48,6 +50,7 @@ public class ChangeomaticMain {
 	}
 
 	@JsonInclude(Include.NON_NULL)
+	@JsonIgnoreProperties(ignoreUnknown = true) 	
 	public static class KassomatJson {
 		public String cmd;
 		public String event;
