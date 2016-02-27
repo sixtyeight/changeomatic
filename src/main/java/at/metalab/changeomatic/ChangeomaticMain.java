@@ -6,7 +6,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
-import javafx.embed.swing.JFXPanel;
+import javax.swing.JPanel;
 
 import org.redisson.Config;
 import org.redisson.Redisson;
@@ -442,7 +442,7 @@ public class ChangeomaticMain {
 		// </editor-fold>
 		// </editor-fold>
 
-		JFXPanel fxPanel = new JFXPanel();
+		JPanel Panel = new JPanel();
 		/* Create and display the form */
 		java.awt.EventQueue.invokeLater(new Runnable() {
 			public void run() {

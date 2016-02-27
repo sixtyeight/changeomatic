@@ -114,8 +114,6 @@ public class ChangeomaticFrame extends javax.swing.JFrame {
 		add(main);
 		setSize(GraphicsEnvironment.getLocalGraphicsEnvironment()
 				.getMaximumWindowBounds().getSize());
-
-		setSize(1024, 768);
 		setLocationRelativeTo(null);
 	}
 
