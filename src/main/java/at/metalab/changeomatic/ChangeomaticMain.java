@@ -455,8 +455,7 @@ public class ChangeomaticMain {
 		}
 		// </editor-fold>
 		// </editor-fold>
-
-		JFXPanel fxPanel = new JFXPanel();
+		
 		/* Create and display the form */
 		java.awt.EventQueue.invokeLater(new Runnable() {
 			public void run() {
