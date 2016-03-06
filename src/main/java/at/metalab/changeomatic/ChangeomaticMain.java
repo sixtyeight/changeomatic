@@ -6,8 +6,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
-import javafx.embed.swing.JFXPanel;
-
 import org.redisson.Config;
 import org.redisson.Redisson;
 import org.redisson.RedissonClient;
