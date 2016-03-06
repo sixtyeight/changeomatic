@@ -145,6 +145,14 @@ public class ChangeomaticFrame extends javax.swing.JFrame {
 
 	public void hintPleaseWait() {
 		notes.setVisible(false);
+
+		makeInhibited(euro5);
+		makeInhibited(euro10);
+		makeInhibited(euro20);
+		makeInhibited(euro50);
+		makeInhibited(euro100);
+		makeInhibited(euro200);
+
 		updateHint("PLEASE WAIT");
 	}
 
@@ -168,12 +176,16 @@ public class ChangeomaticFrame extends javax.swing.JFrame {
 			}
 		});
 	}
-
+	
+	private void makeInhibited(JLabel note) {
+		note.setForeground(Color.RED);
+		note.setFont(fontNoteInhibited);
+	}
+	
 	private void updateInhibit(JLabel note, int channel,
 			List<Integer> inhibitedChannels) {
 		if (inhibitedChannels.contains(channel)) {
-			note.setForeground(Color.RED);
-			note.setFont(fontNoteInhibited);
+			makeInhibited(note);
 		} else {
 			note.setForeground(Color.GREEN);
 			note.setFont(fontNoteAccepted);

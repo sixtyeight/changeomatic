@@ -148,6 +148,10 @@ public class ChangeomaticMain {
 								.stringify());
 						break;
 
+					case "read":
+						inhibitAll(inhibits);
+						break;
+						
 					case "reading":
 						changeomaticFrame.hintPleaseWait();
 						break;
@@ -174,6 +178,10 @@ public class ChangeomaticMain {
 					KassomatJson message = KassomatJson.parse(strMessage);
 
 					switch (message.event) {
+					case "disabled":
+						hopperRequest.publishAsync(enable().stringify());
+						break;
+						
 					case "dispensing":
 						changeomaticFrame.hintDispensing();
 						break;
@@ -337,6 +345,12 @@ public class ChangeomaticMain {
 
 		public void setTpCount(int tpCount) {
 			this.tpCount = tpCount;
+		}
+	}
+	
+	private static void inhibitAll(Map<Integer, Boolean> inhibits) {
+		for(Map.Entry<Integer, Boolean> entry : inhibits.entrySet()) {
+			entry.setValue(true);
 		}
 	}
 
