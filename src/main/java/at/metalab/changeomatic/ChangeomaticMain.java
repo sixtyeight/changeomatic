@@ -233,6 +233,7 @@ public class ChangeomaticMain {
 		submitTestPayout(changeomaticFrame, inhibits, 5000, 4, hopperRequest,
 				hopperResponse, validatorRequest, changeomaticEvent);
 
+		/*
 		submitTestPayout(changeomaticFrame, inhibits, 10000, 5, hopperRequest,
 				hopperResponse, validatorRequest, changeomaticEvent);
 
@@ -241,6 +242,7 @@ public class ChangeomaticMain {
 
 		submitTestPayout(changeomaticFrame, inhibits, 50000, 7, hopperRequest,
 				hopperResponse, validatorRequest, changeomaticEvent);
+		*/
 	}
 
 	private static final Map<Integer, Integer> lastUpdated = new HashMap<Integer, Integer>();

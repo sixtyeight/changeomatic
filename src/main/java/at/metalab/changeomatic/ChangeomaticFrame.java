@@ -27,7 +27,7 @@ public class ChangeomaticFrame extends javax.swing.JFrame {
 	private final JLabel euro200;
 
 	private final JLabel hint;
-	
+
 	private final JPanel notes;
 
 	private JLabel createNoteLabel(String amount) {
@@ -100,8 +100,8 @@ public class ChangeomaticFrame extends javax.swing.JFrame {
 		notes.add(euro10);
 		notes.add(euro20);
 		notes.add(euro50);
-		notes.add(euro100);
-		notes.add(euro200);
+		// notes.add(euro100);
+		// notes.add(euro200);
 
 		main.add(notes);
 
@@ -133,11 +133,11 @@ public class ChangeomaticFrame extends javax.swing.JFrame {
 	public void hintOhNo() {
 		updateHint("OUT OF ORDER");
 	}
-	
+
 	public void hintSorry() {
 		updateHint("SORRY. CAN'T DO.");
 	}
-	
+
 	public void hintInsertNote() {
 		notes.setVisible(true);
 		updateHint("INSERT NOTE");
@@ -176,12 +176,12 @@ public class ChangeomaticFrame extends javax.swing.JFrame {
 			}
 		});
 	}
-	
+
 	private void makeInhibited(JLabel note) {
 		note.setForeground(Color.RED);
 		note.setFont(fontNoteInhibited);
 	}
-	
+
 	private void updateInhibit(JLabel note, int channel,
 			List<Integer> inhibitedChannels) {
 		if (inhibitedChannels.contains(channel)) {
