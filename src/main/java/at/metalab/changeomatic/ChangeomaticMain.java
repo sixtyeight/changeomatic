@@ -138,8 +138,11 @@ public class ChangeomaticMain {
 
 					switch (message.event) {
 					case "credit":
+						inhibitAll(inhibits);
+
 						validatorRequest.publishAsync(inhibitAllChannels()
 								.stringify());
+
 						validatorRequest.publishAsync(disable().stringify());
 
 						hopperRequest.publishAsync(doPayout(message.amount)
@@ -147,7 +150,6 @@ public class ChangeomaticMain {
 						break;
 
 					case "read":
-						inhibitAll(inhibits);
 						break;
 						
 					case "reading":
@@ -271,18 +273,6 @@ public class ChangeomaticMain {
 				hopperResponse.removeListener(getId());
 
 				synchronized (inhibits) {
-					Integer channelLastUpdated = lastUpdated.get(channel);
-					if (channelLastUpdated == null) {
-						channelLastUpdated = getTpCount();
-						lastUpdated.put(channel, channelLastUpdated);
-					}
-
-					if (getTpCount() < channelLastUpdated) {
-						// outdated response
-						System.out.println("skipping outdated response");
-						return;
-					}
-
 					if ("ok".equals(message.result)) {
 						inhibits.put(channel, false);
 					} else {
@@ -297,14 +287,14 @@ public class ChangeomaticMain {
 						}
 					}
 
+					changeomaticFrame.updateInhibits(channelsToInhibit);
+
 					if(inhibitedChannels(inhibits) == inhibits.size()) {
 						// we can't change anything at the moment
 						changeomaticFrame.hintOhNo();
 					} else {
 						changeomaticFrame.hintInsertNote();
 					}
-					
-					changeomaticFrame.updateInhibits(channelsToInhibit);
 					
 					validatorRequest.publishAsync(inhibitChannels(
 							channelsToInhibit).stringify());

@@ -145,14 +145,6 @@ public class ChangeomaticFrame extends javax.swing.JFrame {
 
 	public void hintPleaseWait() {
 		notes.setVisible(false);
-
-		makeInhibited(euro5);
-		makeInhibited(euro10);
-		makeInhibited(euro20);
-		makeInhibited(euro50);
-		makeInhibited(euro100);
-		makeInhibited(euro200);
-
 		updateHint("PLEASE WAIT");
 	}
 
