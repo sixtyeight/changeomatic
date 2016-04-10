@@ -254,10 +254,6 @@ public class ChangeomaticMain {
 		*/
 	}
 
-	private static final Map<Integer, Integer> lastUpdated = new HashMap<Integer, Integer>();
-
-	private static int tpCounter = 0;
-
 	private static synchronized void submitTestPayout(
 			final ChangeomaticFrame changeomaticFrame,
 			final Map<Integer, Boolean> inhibits, final int amount,
@@ -302,9 +298,6 @@ public class ChangeomaticMain {
 			}
 		};
 
-		tpCounter++;
-		w.setTpCount(tpCounter);
-
 		w.setId(hopperResponse.addListener(w));
 		hopperRequest.publishAsync(tp.stringify());
 	}
@@ -325,8 +318,6 @@ public class ChangeomaticMain {
 		private String correlId;
 
 		private int id;
-
-		private int tpCount;
 
 		public KassomatRequestCallback(String msgId) {
 			this.correlId = msgId;
@@ -351,14 +342,6 @@ public class ChangeomaticMain {
 
 		public void setId(int id) {
 			this.id = id;
-		}
-
-		public int getTpCount() {
-			return tpCount;
-		}
-
-		public void setTpCount(int tpCount) {
-			this.tpCount = tpCount;
 		}
 	}
 	
