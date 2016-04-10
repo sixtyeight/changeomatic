@@ -123,11 +123,11 @@ public class ChangeomaticMain {
 		inhibits.put(7, true); // 500 euro (disabled)
 		inhibits.put(8, true); // unused
 
+		changeomaticFrame.hintPleaseWait();
+
 		// initial money check
 		submitAllTestPayouts(changeomaticFrame, inhibits, hopperRequest, hopperResponse,
 				validatorRequest, changeomaticEvent);
-
-		changeomaticFrame.hintInsertNote();
 
 		// handle events which have happened in the banknote validator
 		validatorEvent.addListener(new MessageListener<String>() {
@@ -159,8 +159,12 @@ public class ChangeomaticMain {
 						break;
 						
 					case "rejected":
-						validatorRequest.publishAsync(enable().stringify());
-						changeomaticFrame.hintInsertNote();
+						if(inhibitedChannels(inhibits) == inhibits.size()) {
+							// we can't change anything at the moment
+							changeomaticFrame.hintOhNo();
+						} else {
+							changeomaticFrame.hintInsertNote();
+						}
 						break;
 					}
 				} catch (Exception exception) {
@@ -184,15 +188,18 @@ public class ChangeomaticMain {
 						changeomaticFrame.hintDispensing();
 						break;
 
+					case "floated":
 					case "cashbox paid":
+						changeomaticFrame.hintPleaseWait();
+
 						validatorRequest.publishAsync(inhibitAllChannels()
 								.stringify());
+						
 						submitAllTestPayouts(changeomaticFrame, inhibits, hopperRequest,
 								hopperResponse, validatorRequest,
 								changeomaticEvent);
 
 						validatorRequest.publishAsync(enable().stringify());
-						changeomaticFrame.hintInsertNote();
 						break;
 
 					case "coin credit":
@@ -290,8 +297,15 @@ public class ChangeomaticMain {
 						}
 					}
 
+					if(inhibitedChannels(inhibits) == inhibits.size()) {
+						// we can't change anything at the moment
+						changeomaticFrame.hintOhNo();
+					} else {
+						changeomaticFrame.hintInsertNote();
+					}
+					
 					changeomaticFrame.updateInhibits(channelsToInhibit);
-
+					
 					validatorRequest.publishAsync(inhibitChannels(
 							channelsToInhibit).stringify());
 				}
@@ -305,6 +319,16 @@ public class ChangeomaticMain {
 		hopperRequest.publishAsync(tp.stringify());
 	}
 
+	private static int inhibitedChannels(Map<Integer, Boolean> inhibits) {
+		int i = 0;
+		for(Boolean inhibited : inhibits.values()) {
+			if(inhibited) {
+				i++;
+			}
+		}
+		return i;
+	}
+	
 	public abstract static class KassomatRequestCallback implements
 			MessageListener<String> {
 

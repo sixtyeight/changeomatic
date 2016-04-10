@@ -137,7 +137,7 @@ public class ChangeomaticFrame extends javax.swing.JFrame {
 	public void hintSorry() {
 		updateHint("SORRY. CAN'T DO.");
 	}
-
+	
 	public void hintInsertNote() {
 		notes.setVisible(true);
 		updateHint("INSERT NOTE");
