@@ -64,7 +64,7 @@ public class ChangeomaticFrame extends javax.swing.JFrame {
 
 		font = loadFont("alphbeta.ttf");
 
-		fontNoteAccepted = font.deriveFont(80f);
+		fontNoteAccepted = font.deriveFont(150f);
 
 		{
 			Map attributes = fontNoteAccepted.getAttributes();
@@ -161,20 +161,14 @@ public class ChangeomaticFrame extends javax.swing.JFrame {
 	}
 
 	public void updateInhibits(List<Integer> inhibitedChannels) {
-		SwingUtilities.invokeLater(new Runnable() {
+		updateInhibit(euro5, 1, inhibitedChannels);
+		updateInhibit(euro10, 2, inhibitedChannels);
+		updateInhibit(euro20, 3, inhibitedChannels);
+		updateInhibit(euro50, 4, inhibitedChannels);
+		updateInhibit(euro100, 5, inhibitedChannels);
+		updateInhibit(euro200, 6, inhibitedChannels);
 
-			@Override
-			public void run() {
-				synchronized (ChangeomaticFrame.this) {
-					updateInhibit(euro5, 1, inhibitedChannels);
-					updateInhibit(euro10, 2, inhibitedChannels);
-					updateInhibit(euro20, 3, inhibitedChannels);
-					updateInhibit(euro50, 4, inhibitedChannels);
-					updateInhibit(euro100, 5, inhibitedChannels);
-					updateInhibit(euro200, 6, inhibitedChannels);
-				}
-			}
-		});
+		repaint();
 	}
 
 	private void makeInhibited(JLabel note) {
