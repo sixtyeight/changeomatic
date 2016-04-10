@@ -154,10 +154,12 @@ public class ChangeomaticMain {
 						
 					case "reading":
 						changeomaticFrame.hintPleaseWait();
+						changeomaticFrame.repaint();
 						break;
 						
 					case "rejecting":
 						changeomaticFrame.hintSorry();
+						changeomaticFrame.repaint();
 						break;
 						
 					case "rejected":
@@ -167,6 +169,7 @@ public class ChangeomaticMain {
 						} else {
 							changeomaticFrame.hintInsertNote();
 						}
+						changeomaticFrame.repaint();
 						break;
 					}
 				} catch (Exception exception) {
@@ -188,11 +191,13 @@ public class ChangeomaticMain {
 						
 					case "dispensing":
 						changeomaticFrame.hintDispensing();
+						changeomaticFrame.repaint();
 						break;
 
 					case "floated":
 					case "cashbox paid":
 						changeomaticFrame.hintPleaseWait();
+						changeomaticFrame.repaint();
 
 						validatorRequest.publishAsync(inhibitAllChannels()
 								.stringify());
@@ -283,14 +288,14 @@ public class ChangeomaticMain {
 						}
 					}
 
-					changeomaticFrame.updateInhibits(channelsToInhibit);
-
 					if(inhibitedChannels(inhibits) == inhibits.size()) {
 						// we can't change anything at the moment
 						changeomaticFrame.hintOhNo();
 					} else {
 						changeomaticFrame.hintInsertNote();
 					}
+					changeomaticFrame.updateInhibits(channelsToInhibit);
+					changeomaticFrame.repaint();
 					
 					validatorRequest.publishAsync(inhibitChannels(
 							channelsToInhibit).stringify());

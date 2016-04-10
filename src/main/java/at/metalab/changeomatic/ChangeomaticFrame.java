@@ -120,14 +120,8 @@ public class ChangeomaticFrame extends javax.swing.JFrame {
 	}
 
 	private void updateHint(String strHint) {
-		SwingUtilities.invokeLater(new Runnable() {
-
-			@Override
-			public void run() {
-				hint.setText("-" + strHint + "-");
-				hint.repaint();
-			}
-		});
+		hint.setText("-" + strHint + "-");
+		hint.repaint();
 	}
 
 	public void hintOhNo() {
@@ -159,8 +153,6 @@ public class ChangeomaticFrame extends javax.swing.JFrame {
 		updateInhibit(euro50, 4, inhibitedChannels);
 		updateInhibit(euro100, 5, inhibitedChannels);
 		updateInhibit(euro200, 6, inhibitedChannels);
-
-		repaint();
 	}
 
 	private void makeInhibited(JLabel note) {
@@ -176,7 +168,6 @@ public class ChangeomaticFrame extends javax.swing.JFrame {
 			note.setForeground(Color.GREEN);
 			note.setFont(fontNoteAccepted);
 		}
-		note.repaint();
 	}
 
 }
