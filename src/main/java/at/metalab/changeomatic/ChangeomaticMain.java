@@ -1,10 +1,11 @@
 package at.metalab.changeomatic;
 
-import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.logging.Logger;
 
 import org.redisson.Config;
 import org.redisson.Redisson;
@@ -19,10 +20,17 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 public class ChangeomaticMain {
 
+	private final static Logger LOG = Logger.getLogger(ChangeomaticMain.class
+			.getCanonicalName());
+
 	private final static ObjectMapper om = new ObjectMapper();
 
+	private final static KassomatCallbackDispatcher HOPPER_RESPONSE_DISPATCHER = new KassomatCallbackDispatcher();
+
+	private final static KassomatCallbackDispatcher VALIDATOR_RESPONSE_DISPATCHER = new KassomatCallbackDispatcher();
+
 	@JsonInclude(Include.NON_NULL)
-	@JsonIgnoreProperties(ignoreUnknown = true) 	
+	@JsonIgnoreProperties(ignoreUnknown = true)
 	public static class ChangeomaticJson {
 		public String msgId;
 		public String event;
@@ -48,7 +56,7 @@ public class ChangeomaticMain {
 	}
 
 	@JsonInclude(Include.NON_NULL)
-	@JsonIgnoreProperties(ignoreUnknown = true) 	
+	@JsonIgnoreProperties(ignoreUnknown = true)
 	public static class KassomatJson {
 		public String cmd;
 		public String event;
@@ -77,7 +85,37 @@ public class ChangeomaticMain {
 				throw new RuntimeException("parse failed", exception);
 			}
 		}
+	}
 
+	private static class KassomatCallbackDispatcher implements
+			MessageListener<String> {
+
+		private Map<String, KassomatRequestCallback> callbacks = Collections
+				.synchronizedMap(new HashMap<String, KassomatRequestCallback>());
+
+		public void onMessage(String topic, String strMessage) {
+			try {
+				KassomatJson message = KassomatJson.parse(strMessage);
+				String correlId = message.correlId;
+
+				KassomatRequestCallback callback = callbacks.remove(correlId);
+				if (callback != null) {
+					LOG.info("dispatching to callback: " + strMessage);
+					try {
+						callback.handleMessage(topic, message);
+					} catch (RuntimeException runtimeException) {
+						LOG.warning("caught runtimeException from handleMessage: correlId="
+								+ message.correlId);
+					}
+				}
+			} catch (Exception exception) {
+				oops("KassomatCallbackDispatcher", exception);
+			}
+		}
+
+		public void registerCallback(KassomatRequestCallback callback) {
+			callbacks.put(callback.getCorrelId(), callback);
+		}
 	}
 
 	public static void main(String[] args) throws Exception {
@@ -98,6 +136,11 @@ public class ChangeomaticMain {
 
 		final RTopic<String> validatorEvent = r.getTopic("validator-event");
 		final RTopic<String> validatorRequest = r.getTopic("validator-request");
+		final RTopic<String> validatorResponse = r
+				.getTopic("validator-response");
+
+		hopperResponse.addListener(HOPPER_RESPONSE_DISPATCHER);
+		validatorResponse.addListener(VALIDATOR_RESPONSE_DISPATCHER);
 
 		final ChangeomaticFrame changeomaticFrame = new ChangeomaticFrame();
 		startupGui(changeomaticFrame);
@@ -108,25 +151,11 @@ public class ChangeomaticMain {
 			changeomaticEvent.publish(createChangeomaticEvent("started")
 					.stringify());
 		}
-		
-		// disable all channels (this will also be done by smart
-		// payout by default in the future)
-		validatorRequest.publish(inhibitAllChannels().stringify());
-
-		final Map<Integer, Boolean> inhibits = new HashMap<Integer, Boolean>();
-		inhibits.put(1, true); // 5 euro
-		inhibits.put(2, true); // 10 euro
-		inhibits.put(3, true); // 20 euro
-		inhibits.put(4, true); // 50 euro (disabled)
-		inhibits.put(5, true); // 100 euro (disabled)
-		inhibits.put(6, true); // 200 euro (disabled)
-		inhibits.put(7, true); // 500 euro (disabled)
-		inhibits.put(8, true); // unused
 
 		changeomaticFrame.hintPleaseWait();
 
 		// initial money check
-		submitAllTestPayouts(changeomaticFrame, inhibits, hopperRequest, hopperResponse,
+		submitAllTestPayouts(changeomaticFrame, hopperRequest, hopperResponse,
 				validatorRequest, changeomaticEvent);
 
 		// handle events which have happened in the banknote validator
@@ -134,12 +163,11 @@ public class ChangeomaticMain {
 
 			public void onMessage(String channel, String strMessage) {
 				try {
+					LOG.info("validator-event: " + strMessage);
 					KassomatJson message = KassomatJson.parse(strMessage);
 
 					switch (message.event) {
 					case "credit":
-						inhibitAll(inhibits);
-
 						validatorRequest.publishAsync(inhibitAllChannels()
 								.stringify());
 
@@ -151,24 +179,19 @@ public class ChangeomaticMain {
 
 					case "read":
 						break;
-						
+
 					case "reading":
 						changeomaticFrame.hintPleaseWait();
 						changeomaticFrame.repaint();
 						break;
-						
+
 					case "rejecting":
 						changeomaticFrame.hintSorry();
 						changeomaticFrame.repaint();
 						break;
-						
+
 					case "rejected":
-						if(inhibitedChannels(inhibits) == inhibits.size()) {
-							// we can't change anything at the moment
-							changeomaticFrame.hintOhNo();
-						} else {
-							changeomaticFrame.hintInsertNote();
-						}
+						changeomaticFrame.updateHint();
 						changeomaticFrame.repaint();
 						break;
 					}
@@ -182,13 +205,14 @@ public class ChangeomaticMain {
 		hopperEvent.addListener(new MessageListener<String>() {
 			public void onMessage(String channel, String strMessage) {
 				try {
+					LOG.info("hopper-event: " + strMessage);
 					KassomatJson message = KassomatJson.parse(strMessage);
 
 					switch (message.event) {
 					case "disabled":
 						hopperRequest.publishAsync(enable().stringify());
 						break;
-						
+
 					case "dispensing":
 						changeomaticFrame.hintDispensing();
 						changeomaticFrame.repaint();
@@ -201,8 +225,8 @@ public class ChangeomaticMain {
 
 						validatorRequest.publishAsync(inhibitAllChannels()
 								.stringify());
-						
-						submitAllTestPayouts(changeomaticFrame, inhibits, hopperRequest,
+
+						submitAllTestPayouts(changeomaticFrame, hopperRequest,
 								hopperResponse, validatorRequest,
 								changeomaticEvent);
 
@@ -210,7 +234,7 @@ public class ChangeomaticMain {
 						break;
 
 					case "coin credit":
-						submitAllTestPayouts(changeomaticFrame, inhibits, hopperRequest,
+						submitAllTestPayouts(changeomaticFrame, hopperRequest,
 								hopperResponse, validatorRequest,
 								changeomaticEvent);
 						break;
@@ -230,99 +254,78 @@ public class ChangeomaticMain {
 
 	private static void submitAllTestPayouts(
 			final ChangeomaticFrame changeomaticFrame,
-			final Map<Integer, Boolean> inhibits,
 			final RTopic<String> hopperRequest,
 			final RTopic<String> hopperResponse,
 			final RTopic<String> validatorRequest,
 			final RTopic<String> changeomaticEvent) {
-		submitTestPayout(changeomaticFrame, inhibits, 500, 1, hopperRequest,
+		submitTestPayout(changeomaticFrame, 500, 1, hopperRequest,
 				hopperResponse, validatorRequest, changeomaticEvent);
 
-		submitTestPayout(changeomaticFrame, inhibits, 1000, 2, hopperRequest,
+		submitTestPayout(changeomaticFrame, 1000, 2, hopperRequest,
 				hopperResponse, validatorRequest, changeomaticEvent);
 
-		submitTestPayout(changeomaticFrame, inhibits, 2000, 3, hopperRequest,
+		submitTestPayout(changeomaticFrame, 2000, 3, hopperRequest,
 				hopperResponse, validatorRequest, changeomaticEvent);
 
-		submitTestPayout(changeomaticFrame, inhibits, 5000, 4, hopperRequest,
+		submitTestPayout(changeomaticFrame, 5000, 4, hopperRequest,
 				hopperResponse, validatorRequest, changeomaticEvent);
 
 		/*
-		submitTestPayout(changeomaticFrame, inhibits, 10000, 5, hopperRequest,
-				hopperResponse, validatorRequest, changeomaticEvent);
-
-		submitTestPayout(changeomaticFrame, inhibits, 20000, 6, hopperRequest,
-				hopperResponse, validatorRequest, changeomaticEvent);
-
-		submitTestPayout(changeomaticFrame, inhibits, 50000, 7, hopperRequest,
-				hopperResponse, validatorRequest, changeomaticEvent);
-		*/
+		 * submitTestPayout(changeomaticFrame, inhibits, 10000, 5,
+		 * hopperRequest, hopperResponse, validatorRequest, changeomaticEvent);
+		 * 
+		 * submitTestPayout(changeomaticFrame, inhibits, 20000, 6,
+		 * hopperRequest, hopperResponse, validatorRequest, changeomaticEvent);
+		 * 
+		 * submitTestPayout(changeomaticFrame, inhibits, 50000, 7,
+		 * hopperRequest, hopperResponse, validatorRequest, changeomaticEvent);
+		 */
 	}
 
 	private static synchronized void submitTestPayout(
-			final ChangeomaticFrame changeomaticFrame,
-			final Map<Integer, Boolean> inhibits, final int amount,
+			final ChangeomaticFrame changeomaticFrame, final int amount,
 			final int channel, final RTopic<String> hopperRequest,
 			final RTopic<String> hopperResponse,
 			final RTopic<String> validatorRequest,
 			final RTopic<String> changeomaticEvent) {
 		final KassomatJson tp = testPayout(amount);
-		final KassomatRequestCallback w = new KassomatRequestCallback(tp.msgId) {
+
+		final KassomatRequestCallback cb = new KassomatRequestCallback(tp.msgId) {
 
 			@Override
 			public void handleMessage(String topic, KassomatJson message) {
-				hopperResponse.removeListener(getId());
-
-				synchronized (inhibits) {
-					if ("ok".equals(message.result)) {
-						inhibits.put(channel, false);
-					} else {
-						inhibits.put(channel, true);
-					}
-
-					List<Integer> channelsToInhibit = new ArrayList<Integer>();
-					for (Map.Entry<Integer, Boolean> entry : inhibits
-							.entrySet()) {
-						if (entry.getValue()) {
-							channelsToInhibit.add(entry.getKey());
-						}
-					}
-
-					if(inhibitedChannels(inhibits) == inhibits.size()) {
-						// we can't change anything at the moment
-						changeomaticFrame.hintOhNo();
-					} else {
-						changeomaticFrame.hintInsertNote();
-					}
-					changeomaticFrame.updateInhibits(channelsToInhibit);
-					changeomaticFrame.repaint();
+				if ("ok".equals(message.result)) {
+					// we can change this banknote
 					
-					validatorRequest.publishAsync(inhibitChannels(
-							channelsToInhibit).stringify());
+					// update the UI
+					changeomaticFrame.updateInhibit(channel, false);
+
+					// enable the channel in the note validator
+					validatorRequest.publishAsync(enableChannel(channel)
+							.stringify());
+				} else {
+					// nope, this banknote cannot be changed
+
+					// update the UI
+					changeomaticFrame.updateInhibit(channel, true);
+					
+					// disable the channel in the note validator
+					validatorRequest.publishAsync(disableChannel(channel)
+							.stringify());
 				}
+
+				changeomaticFrame.repaint();
 			}
 		};
 
-		w.setId(hopperResponse.addListener(w));
+		HOPPER_RESPONSE_DISPATCHER.registerCallback(cb);
 		hopperRequest.publishAsync(tp.stringify());
 	}
 
-	private static int inhibitedChannels(Map<Integer, Boolean> inhibits) {
-		int i = 0;
-		for(Boolean inhibited : inhibits.values()) {
-			if(inhibited) {
-				i++;
-			}
-		}
-		return i;
-	}
-	
 	public abstract static class KassomatRequestCallback implements
 			MessageListener<String> {
 
 		private String correlId;
-
-		private int id;
 
 		public KassomatRequestCallback(String msgId) {
 			this.correlId = msgId;
@@ -332,6 +335,7 @@ public class ChangeomaticMain {
 			try {
 				KassomatJson message = KassomatJson.parse(strMessage);
 				if (correlId.equals(message.correlId)) {
+					LOG.info("hopper-response: " + strMessage);
 					handleMessage(topic, message);
 				}
 			} catch (Exception exception) {
@@ -341,18 +345,8 @@ public class ChangeomaticMain {
 
 		public abstract void handleMessage(String topic, KassomatJson message);
 
-		public int getId() {
-			return id;
-		}
-
-		public void setId(int id) {
-			this.id = id;
-		}
-	}
-	
-	private static void inhibitAll(Map<Integer, Boolean> inhibits) {
-		for(Map.Entry<Integer, Boolean> entry : inhibits.entrySet()) {
-			entry.setValue(true);
+		public String getCorrelId() {
+			return correlId;
 		}
 	}
 
@@ -392,21 +386,20 @@ public class ChangeomaticMain {
 	}
 
 	private static KassomatJson inhibitAllChannels() {
-		KassomatJson k = createSmartPayoutRequest("inhibit-channels");
+		KassomatJson k = createSmartPayoutRequest("disable-channels");
 		k.channels = "1,2,3,4,5,6,7,8";
 		return k;
 	}
 
-	private static KassomatJson inhibitChannels(List<Integer> channels) {
-		KassomatJson k = createSmartPayoutRequest("inhibit-channels");
-		StringBuilder s = new StringBuilder();
-		for (Integer channel : channels) {
-			if (s.length() > 0) {
-				s.append(",");
-			}
-			s.append(channel);
-		}
-		k.channels = s.toString();
+	private static KassomatJson enableChannel(int channel) {
+		KassomatJson k = createSmartPayoutRequest("enable-channels");
+		k.channels = String.valueOf(channel);
+		return k;
+	}
+
+	private static KassomatJson disableChannel(int channel) {
+		KassomatJson k = createSmartPayoutRequest("disable-channels");
+		k.channels = String.valueOf(channel);
 		return k;
 	}
 
@@ -414,12 +407,12 @@ public class ChangeomaticMain {
 		KassomatJson k = createSmartPayoutRequest("disable");
 		return k;
 	}
-	
+
 	private static KassomatJson enable() {
 		KassomatJson k = createSmartPayoutRequest("enable");
 		return k;
 	}
-	
+
 	private static void startupGui(ChangeomaticFrame changeomaticFrame) {
 		/* Set the Nimbus look and feel */
 		// <editor-fold defaultstate="collapsed"
@@ -455,9 +448,7 @@ public class ChangeomaticMain {
 					ChangeomaticFrame.class.getName()).log(
 					java.util.logging.Level.SEVERE, null, ex);
 		}
-		// </editor-fold>
-		// </editor-fold>
-		
+
 		/* Create and display the form */
 		java.awt.EventQueue.invokeLater(new Runnable() {
 			public void run() {

@@ -7,13 +7,13 @@ import java.awt.GraphicsEnvironment;
 import java.awt.GridLayout;
 import java.awt.font.TextAttribute;
 import java.io.IOException;
-import java.util.List;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
 
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.SwingConstants;
-import javax.swing.SwingUtilities;
 
 public class ChangeomaticFrame extends javax.swing.JFrame {
 
@@ -29,6 +29,9 @@ public class ChangeomaticFrame extends javax.swing.JFrame {
 	private final JLabel hint;
 
 	private final JPanel notes;
+
+	private final Map<Integer, JLabel> labelsByChannel = Collections
+			.synchronizedMap(new HashMap<Integer, JLabel>());
 
 	private JLabel createNoteLabel(String amount) {
 		JLabel note = new JLabel();
@@ -57,6 +60,7 @@ public class ChangeomaticFrame extends javax.swing.JFrame {
 
 	private Font fontNoteInhibited;
 
+	@SuppressWarnings("unchecked")
 	public ChangeomaticFrame() {
 		setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
 		setTitle("change-o-matic");
@@ -67,6 +71,7 @@ public class ChangeomaticFrame extends javax.swing.JFrame {
 		fontNoteAccepted = font.deriveFont(150f);
 
 		{
+			@SuppressWarnings("rawtypes")
 			Map attributes = fontNoteAccepted.getAttributes();
 			attributes.put(TextAttribute.STRIKETHROUGH,
 					TextAttribute.STRIKETHROUGH_ON);
@@ -92,6 +97,18 @@ public class ChangeomaticFrame extends javax.swing.JFrame {
 		euro50 = createNoteLabel("50");
 		euro100 = createNoteLabel("100");
 		euro200 = createNoteLabel("200");
+
+		labelsByChannel.put(1, euro5);
+		labelsByChannel.put(2, euro10);
+		labelsByChannel.put(3, euro20);
+		labelsByChannel.put(4, euro50);
+		labelsByChannel.put(5, euro100);
+		labelsByChannel.put(6, euro200);
+
+		// mark all as inhibited initially
+		for (JLabel note : labelsByChannel.values()) {
+			makeInhibited(note);
+		}
 
 		notes = new JPanel(new GridLayout(1, 0));
 		notes.setBackground(Color.BLACK);
@@ -125,13 +142,14 @@ public class ChangeomaticFrame extends javax.swing.JFrame {
 	}
 
 	public void hintOhNo() {
+		notes.setVisible(false);
 		updateHint("OUT OF ORDER");
 	}
 
 	public void hintSorry() {
 		updateHint("SORRY. CAN'T DO.");
 	}
-	
+
 	public void hintInsertNote() {
 		notes.setVisible(true);
 		updateHint("INSERT NOTE");
@@ -146,13 +164,30 @@ public class ChangeomaticFrame extends javax.swing.JFrame {
 		updateHint("DISPENSING");
 	}
 
-	public void updateInhibits(List<Integer> inhibitedChannels) {
-		updateInhibit(euro5, 1, inhibitedChannels);
-		updateInhibit(euro10, 2, inhibitedChannels);
-		updateInhibit(euro20, 3, inhibitedChannels);
-		updateInhibit(euro50, 4, inhibitedChannels);
-		updateInhibit(euro100, 5, inhibitedChannels);
-		updateInhibit(euro200, 6, inhibitedChannels);
+	public void updateInhibit(int channel, boolean inhibited) {
+		JLabel note = labelsByChannel.get(channel);
+		if (inhibited) {
+			makeInhibited(note);
+		} else {
+			makeAccepted(note);
+		}
+
+		updateHint();
+	}
+
+	public void updateHint() {
+		boolean outOfOrder = true;
+		for (JLabel label : labelsByChannel.values()) {
+			if (label.getForeground().equals(Color.GREEN)) {
+				outOfOrder = false;
+			}
+		}
+
+		if (outOfOrder) {
+			hintOhNo();
+		} else {
+			hintInsertNote();
+		}
 	}
 
 	private void makeInhibited(JLabel note) {
@@ -160,14 +195,9 @@ public class ChangeomaticFrame extends javax.swing.JFrame {
 		note.setFont(fontNoteInhibited);
 	}
 
-	private void updateInhibit(JLabel note, int channel,
-			List<Integer> inhibitedChannels) {
-		if (inhibitedChannels.contains(channel)) {
-			makeInhibited(note);
-		} else {
-			note.setForeground(Color.GREEN);
-			note.setFont(fontNoteAccepted);
-		}
+	private void makeAccepted(JLabel note) {
+		note.setForeground(Color.GREEN);
+		note.setFont(fontNoteAccepted);
 	}
 
 }
