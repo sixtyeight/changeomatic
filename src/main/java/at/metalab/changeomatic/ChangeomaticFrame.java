@@ -5,6 +5,7 @@ import java.awt.Font;
 import java.awt.FontFormatException;
 import java.awt.GraphicsEnvironment;
 import java.awt.GridLayout;
+import java.awt.TextField;
 import java.awt.font.TextAttribute;
 import java.io.IOException;
 import java.util.Collections;
@@ -13,6 +14,7 @@ import java.util.Map;
 
 import javax.swing.JLabel;
 import javax.swing.JPanel;
+import javax.swing.JTabbedPane;
 import javax.swing.SwingConstants;
 
 public class ChangeomaticFrame extends javax.swing.JFrame {
@@ -43,6 +45,8 @@ public class ChangeomaticFrame extends javax.swing.JFrame {
 		return note;
 	}
 
+	private final JLabel emptiedAmount;
+	
 	private static Font loadFont(String resource) {
 		try {
 			return Font.createFont(Font.TRUETYPE_FONT, Thread.currentThread()
@@ -78,64 +82,101 @@ public class ChangeomaticFrame extends javax.swing.JFrame {
 			fontNoteInhibited = fontNoteAccepted.deriveFont(attributes);
 		}
 
-		JPanel main = new JPanel(new GridLayout(3, 0));
-		main.setBackground(Color.BLACK);
-
+		JPanel main;
 		{
-			JLabel logo = new JLabel();
-			logo.setHorizontalAlignment(SwingConstants.CENTER);
-			logo.setForeground(Color.WHITE);
-			logo.setFont(font.deriveFont(110f));
-			logo.setText("change-o-matic".toUpperCase());
+			main = new JPanel(new GridLayout(3, 0));
+			main.setBackground(Color.BLACK);
 
-			main.add(logo);
+			{
+				JLabel logo = new JLabel();
+				logo.setHorizontalAlignment(SwingConstants.CENTER);
+				logo.setForeground(Color.WHITE);
+				logo.setFont(font.deriveFont(110f));
+				logo.setText("change-o-matic".toUpperCase());
+
+				main.add(logo);
+			}
+
+			euro5 = createNoteLabel("5");
+			euro10 = createNoteLabel("10");
+			euro20 = createNoteLabel("20");
+			euro50 = createNoteLabel("50");
+			euro100 = createNoteLabel("100");
+			euro200 = createNoteLabel("200");
+
+			labelsByChannel.put(1, euro5);
+			labelsByChannel.put(2, euro10);
+			labelsByChannel.put(3, euro20);
+			labelsByChannel.put(4, euro50);
+			labelsByChannel.put(5, euro100);
+			labelsByChannel.put(6, euro200);
+
+			// mark all as inhibited initially
+			for (JLabel note : labelsByChannel.values()) {
+				makeInhibited(note);
+			}
+
+			notes = new JPanel(new GridLayout(1, 0));
+			notes.setBackground(Color.BLACK);
+
+			notes.add(euro5);
+			notes.add(euro10);
+			notes.add(euro20);
+			notes.add(euro50);
+			// notes.add(euro100);
+			// notes.add(euro200);
+
+			main.add(notes);
+
+			hint = new JLabel();
+			hint.setForeground(Color.YELLOW);
+			hint.setFont(font.deriveFont(80f));
+			hint.setHorizontalAlignment(SwingConstants.CENTER);
+			main.add(hint);
 		}
 
-		euro5 = createNoteLabel("5");
-		euro10 = createNoteLabel("10");
-		euro20 = createNoteLabel("20");
-		euro50 = createNoteLabel("50");
-		euro100 = createNoteLabel("100");
-		euro200 = createNoteLabel("200");
+		JPanel maintenance;
+		{
+			maintenance = new JPanel(new GridLayout(3, 0));
+			maintenance.setBackground(Color.BLACK);
 
-		labelsByChannel.put(1, euro5);
-		labelsByChannel.put(2, euro10);
-		labelsByChannel.put(3, euro20);
-		labelsByChannel.put(4, euro50);
-		labelsByChannel.put(5, euro100);
-		labelsByChannel.put(6, euro200);
+			{
+				JLabel logo = new JLabel();
+				logo.setHorizontalAlignment(SwingConstants.CENTER);
+				logo.setForeground(Color.WHITE);
+				logo.setFont(font.deriveFont(110f));
+				logo.setText("change-o-matic".toUpperCase());
 
-		// mark all as inhibited initially
-		for (JLabel note : labelsByChannel.values()) {
-			makeInhibited(note);
+				maintenance.add(logo);
+			}
+			
+			emptiedAmount = new JLabel();
+			emptiedAmount.setForeground(Color.YELLOW);
+			emptiedAmount.setFont(font.deriveFont(80f));
+			emptiedAmount.setHorizontalAlignment(SwingConstants.CENTER);
+			maintenance.add(emptiedAmount);
 		}
+		
+		JTabbedPane tabbedPane = new JTabbedPane();
+		tabbedPane.add(main, 0);
+		tabbedPane.setTitleAt(0, "change-o-matic");
 
-		notes = new JPanel(new GridLayout(1, 0));
-		notes.setBackground(Color.BLACK);
-
-		notes.add(euro5);
-		notes.add(euro10);
-		notes.add(euro20);
-		notes.add(euro50);
-		// notes.add(euro100);
-		// notes.add(euro200);
-
-		main.add(notes);
-
-		hint = new JLabel();
-		hint.setForeground(Color.YELLOW);
-		hint.setFont(font.deriveFont(80f));
-		hint.setHorizontalAlignment(SwingConstants.CENTER);
-		main.add(hint);
-
-		add(main);
+		tabbedPane.add(maintenance, 1);
+		tabbedPane.setTitleAt(1, "maintenance");
+		
+		add(tabbedPane);
 		setSize(GraphicsEnvironment.getLocalGraphicsEnvironment()
 				.getMaximumWindowBounds().getSize());
 
 		setSize(1024, 768);
 		setLocationRelativeTo(null);
 	}
-
+	
+	public void updateEmptiedAmount(String amount) {
+		emptiedAmount.setText(amount);
+		emptiedAmount.repaint();
+	}
+	
 	private void updateHint(String strHint) {
 		hint.setText("-" + strHint + "-");
 		hint.repaint();

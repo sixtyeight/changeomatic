@@ -1,5 +1,6 @@
 package at.metalab.changeomatic;
 
+import java.math.BigDecimal;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -218,6 +219,14 @@ public class ChangeomaticMain {
 						changeomaticFrame.repaint();
 						break;
 
+					case "smart emptied":
+					case "smart emptying":
+						if(message.amount != null) {
+							changeomaticFrame.updateEmptiedAmount(
+									new BigDecimal(message.amount.intValue()).movePointLeft(2).toPlainString());
+						}
+						break;
+						
 					case "floated":
 					case "cashbox paid":
 						changeomaticFrame.hintPleaseWait();
