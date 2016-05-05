@@ -5,7 +5,6 @@ import java.awt.Font;
 import java.awt.FontFormatException;
 import java.awt.GraphicsEnvironment;
 import java.awt.GridLayout;
-import java.awt.TextField;
 import java.awt.font.TextAttribute;
 import java.io.IOException;
 import java.util.Collections;
