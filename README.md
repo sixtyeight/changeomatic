@@ -1,6 +1,8 @@
 # changeomatic
 Metalab change machine, a proof of concept using the Payout JSON API
 
+![screenshot](https://github.com/sixtyeight/changeomatic/blob/master/changeomatic.png)
+
 #### Example trace, showing the exchange of a 10 Euro note 
 ```
 "PUBLISH" "validator-event" "{\"event\":\"reading\"}"
