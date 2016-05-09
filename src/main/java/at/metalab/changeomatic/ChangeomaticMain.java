@@ -126,19 +126,18 @@ public class ChangeomaticMain {
 
 		RedissonClient r = Redisson.create(c);
 
-		final RTopic<String> changeomaticEvent = r
-				.getTopic("changeomatic-event");
-		changeomaticEvent.publish(createChangeomaticEvent("starting-up")
-				.stringify());
+		final RTopic<String> changeomaticEvent = r.getTopic("changeomatic-event");
+		changeomaticEvent.publish(createChangeomaticEvent("starting-up").stringify());
 
+		final RTopic<String> payoutEvent = r.getTopic("payout-event");
+		
 		final RTopic<String> hopperRequest = r.getTopic("hopper-request");
 		final RTopic<String> hopperResponse = r.getTopic("hopper-response");
 		final RTopic<String> hopperEvent = r.getTopic("hopper-event");
 
 		final RTopic<String> validatorEvent = r.getTopic("validator-event");
 		final RTopic<String> validatorRequest = r.getTopic("validator-request");
-		final RTopic<String> validatorResponse = r
-				.getTopic("validator-response");
+		final RTopic<String> validatorResponse = r.getTopic("validator-response");
 
 		hopperResponse.addListener(HOPPER_RESPONSE_DISPATCHER);
 		validatorResponse.addListener(VALIDATOR_RESPONSE_DISPATCHER);
@@ -159,6 +158,30 @@ public class ChangeomaticMain {
 		submitAllTestPayouts(changeomaticFrame, hopperRequest, hopperResponse,
 				validatorRequest, changeomaticEvent);
 
+		payoutEvent.addListener(new MessageListener<String>() {
+
+			public void onMessage(String channel, String strMessage) {
+				try {
+					LOG.info("payout-event: " + strMessage);
+					KassomatJson message = KassomatJson.parse(strMessage);
+
+					switch (message.event) {
+					case "started":
+						submitAllTestPayouts(changeomaticFrame, hopperRequest, hopperResponse,
+								validatorRequest, changeomaticEvent);
+						break;
+						
+					case "exiting":
+						changeomaticFrame.hintSorry();
+						changeomaticFrame.repaint();
+						break;
+					}
+				} catch (Exception exception) {
+					oops("payout-event-listener", exception);
+				}
+			}
+		});
+		
 		// handle events which have happened in the banknote validator
 		validatorEvent.addListener(new MessageListener<String>() {
 
