@@ -96,6 +96,8 @@ public class ChangeomaticMain {
 
 		public void onMessage(String topic, String strMessage) {
 			try {
+				LOG.info("received message in topic '" + topic + "':" + strMessage);
+				
 				KassomatJson message = KassomatJson.parse(strMessage);
 				String correlId = message.correlId;
 
