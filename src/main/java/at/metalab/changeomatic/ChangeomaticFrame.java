@@ -10,6 +10,7 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.logging.Logger;
 
 import javax.swing.JLabel;
 import javax.swing.JPanel;
@@ -18,6 +19,8 @@ import javax.swing.SwingConstants;
 
 public class ChangeomaticFrame extends javax.swing.JFrame {
 
+	private final static Logger LOG = Logger.getLogger(ChangeomaticFrame.class.getCanonicalName());
+	
 	private static final long serialVersionUID = 1L;
 
 	private final JLabel euro5;
@@ -177,6 +180,8 @@ public class ChangeomaticFrame extends javax.swing.JFrame {
 	}
 	
 	private void updateHint(String strHint) {
+		LOG.info("updateHint: " + strHint);
+		
 		hint.setText("-" + strHint + "-");
 		hint.repaint();
 	}
@@ -231,11 +236,15 @@ public class ChangeomaticFrame extends javax.swing.JFrame {
 	}
 
 	private void makeInhibited(JLabel note) {
+		LOG.info("makeInhibited: amount=" + note.getText());
+		
 		note.setForeground(Color.RED);
 		note.setFont(fontNoteInhibited);
 	}
 
 	private void makeAccepted(JLabel note) {
+		LOG.info("makeAccepted: amount=" + note.getText());
+
 		note.setForeground(Color.GREEN);
 		note.setFont(fontNoteAccepted);
 	}

@@ -24,7 +24,12 @@
 		   <groupId>org.redisson</groupId>
 		   <artifactId>redisson</artifactId>
 		   <version>${redisson.version}</version>
-		</dependency>	
+		</dependency>
+ 		<dependency>
+        	<groupId>org.slf4j</groupId>
+        	<artifactId>slf4j-jdk14</artifactId>
+        	<version>1.7.14</version>
+		</dependency>			
 	</dependencies>
 
 	<build>

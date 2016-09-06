@@ -277,8 +277,8 @@ public class ChangeomaticMain {
 			}
 		});
 
-		System.out.println("change-o-matic is open for business :D");
-		System.out.println("press enter to exit...");
+		LOG.info("change-o-matic is open for business :D");
+		LOG.info("press enter to exit...");
 		System.in.read();
 
 		r.shutdown();
@@ -290,6 +290,8 @@ public class ChangeomaticMain {
 			final RTopic<String> hopperResponse,
 			final RTopic<String> validatorRequest,
 			final RTopic<String> changeomaticEvent) {
+		LOG.info("entered submitAllTestPayouts");
+		
 		submitTestPayout(changeomaticFrame, 500, 1, hopperRequest,
 				hopperResponse, validatorRequest, changeomaticEvent);
 
@@ -327,6 +329,8 @@ public class ChangeomaticMain {
 			@Override
 			public void handleMessage(String topic, KassomatJson message) {
 				if ("ok".equals(message.result)) {
+					LOG.info("received OK for amount: " + amount);
+					
 					// we can change this banknote
 					
 					// update the UI
@@ -336,6 +340,8 @@ public class ChangeomaticMain {
 					validatorRequest.publishAsync(enableChannel(channel)
 							.stringify());
 				} else {
+					LOG.info("received NO for amount: " + amount);
+
 					// nope, this banknote cannot be changed
 
 					// update the UI
@@ -349,6 +355,8 @@ public class ChangeomaticMain {
 				changeomaticFrame.repaint();
 			}
 		};
+
+		LOG.info("publishing test for amount: " + amount);
 
 		HOPPER_RESPONSE_DISPATCHER.registerCallback(cb);
 		hopperRequest.publishAsync(tp.stringify());
