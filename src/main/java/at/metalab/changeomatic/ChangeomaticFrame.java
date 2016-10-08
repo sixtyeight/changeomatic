@@ -159,6 +159,7 @@ public class ChangeomaticFrame extends javax.swing.JFrame {
 			maintenance.add(emptiedAmount);
 		}
 		
+		/** disabled maintenance for now
 		JTabbedPane tabbedPane = new JTabbedPane();
 		tabbedPane.add(main, 0);
 		tabbedPane.setTitleAt(0, "change-o-matic");
@@ -167,6 +168,10 @@ public class ChangeomaticFrame extends javax.swing.JFrame {
 		tabbedPane.setTitleAt(1, "maintenance");
 		
 		add(tabbedPane);
+		*/
+		
+		add(main);
+		
 		setSize(GraphicsEnvironment.getLocalGraphicsEnvironment()
 				.getMaximumWindowBounds().getSize());
 
